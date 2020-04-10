@@ -40,10 +40,6 @@ public class POC {
 
         rsaPublicKeySpec = createPublicKey();
 
-//        System.out.println(keyAES);
-//        System.out.println(keyAES.bitLength());
-//        System.out.println(byteArrayToString(keyAES.toByteArray()));
-
         encryptKey(keyAES);
     }
 

@@ -41,9 +41,6 @@ public class POC {
 
         rsaPublicKeySpec = createPublicKey();
 
-//        System.out.println(keyAES);
-//        System.out.println(keyAES.bitLength());
-//        System.out.println(byteArrayToString(keyAES.toByteArray()));
 
         encryptKey(keyAES);
     }
@@ -105,13 +102,24 @@ public class POC {
     }
 
     /*Décryption des bytes cryptés précedemment*/
-    public byte[] decrypt(byte[] cryptedBytes){
+    public byte[] decrypt(byte[] cryptedBytes, byte[] keyAesEncrypted){
 
-        SecretKeySpec secretKeySpec = new SecretKeySpec(keyAES.toByteArray(), "AES");
+        return decryptBytes(cryptedBytes, "AES", "AES/CBC/PKCS5PADDING");
+    }
+
+    public byte[] decryptFile(String filePath){
+
+//        return decryptBytes(cryptedBytes, "AES", "AES/CBC/PKCS5PADDING");
+        return new byte[0];
+    }
+
+    public byte[] decryptBytes(byte[] cryptedBytes, String algorithm, String cypher){
+
+        SecretKeySpec secretKeySpec = new SecretKeySpec(keyAES.toByteArray(), algorithm);
         IvParameterSpec ivParameterSpec = new IvParameterSpec(initVector.toByteArray());
 
         try {
-            cipher = getCypher("AES/CBC/PKCS5PADDING");
+            cipher = getCypher(cypher);
             assert cipher != null;
             cipher.init(Cipher.DECRYPT_MODE, secretKeySpec, ivParameterSpec);
 
@@ -133,7 +141,7 @@ public class POC {
 
 //            System.out.println("Clé AES chiffrée : "+byteArrayToString(keyEncrypted));
 
-            write_results_to_file(keyEncrypted, "src/G1/resultats.txt");
+            writeKeyAndInitVectorToFile(keyEncrypted, "src/G1/resultats.txt");
 
         } catch (InvalidKeyException | BadPaddingException | IllegalBlockSizeException e) {
             e.printStackTrace();
@@ -141,7 +149,7 @@ public class POC {
     }
 
     /*Ecriture de la clé AES dans le fichier resultats.txt*/
-    private void write_results_to_file(byte[] keyEncrypted, String file) {
+    private void writeKeyAndInitVectorToFile(byte[] keyEncrypted, String file) {
         printWriterResult = createPrintWriter(file);
 
         printWriterResult.println(byteArrayToString(keyEncrypted));
@@ -252,12 +260,12 @@ public class POC {
 //        byte[] encryptedData = encryptTextFile("test.txt","src/G1/resultats.txt");
 
         /*Encryption des bytes de l'image*/
-        System.out.println("Encryption des bytes de l'image");
-        byte[] encryptedData = poc.encryptImg("src/G1/butokuden.jpg","src/G1/resultats.txt");
+//        System.out.println("Encryption des bytes de l'image");
+//        byte[] encryptedData = poc.encryptImg("src/G1/butokuden.jpg","src/G1/resultats.txt");
 
 
         System.out.println("Décryption des bytes encryptés de l'image");
-        byte[] decryptedData = poc.decrypt(encryptedData);
+        byte[] decryptedData = poc.decryptFile("src/G1/resultats.txt");
 
 
         /*Ecriture des bytes décryptés dans un nouveau ficheir .jpg*/
