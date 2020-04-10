@@ -10,7 +10,6 @@ import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.*;
 import java.math.BigInteger;
-
 import java.nio.charset.StandardCharsets;
 import java.security.*;
 import java.security.spec.InvalidKeySpecException;
@@ -37,7 +36,7 @@ public class POC {
         this.initVector = new BigInteger(127,rand);
 
         /*Récupération module public n et exposant public e*/
-        getKeysFromTxt(new File("./clef_publique.txt"));
+        getKeysFromTxt(new File("src/G2/clef_publique.txt"));
 
         rsaPublicKeySpec = createPublicKey();
 
@@ -133,7 +132,7 @@ public class POC {
 
 //            System.out.println("Clé AES chiffrée : "+byteArrayToString(keyEncrypted));
 
-            write_results_to_file(keyEncrypted, "resultats.txt");
+            write_results_to_file(keyEncrypted, "src/G2/resultats.txt");
 
         } catch (InvalidKeyException | BadPaddingException | IllegalBlockSizeException e) {
             e.printStackTrace();
@@ -237,7 +236,7 @@ public class POC {
 
     @Override
     public String toString() {
-        return "POC_JCE{" +
+        return "POC{" +
                 "keyAESBig=" + keyAES +
                 ", initVectorBig=" + initVector +
                 ", publicE=" + publicE +
@@ -249,11 +248,11 @@ public class POC {
     public static void main(String[] args) {
         POC poc = new POC();
         /*Ligne commentée : permet l'encryption de fichiers .txt*/
-//        byte[] encryptedData = encryptTextFile("test.txt","resultats.txt");
+//        byte[] encryptedData = encryptTextFile("test.txt","src/G2/resultats.txt");
 
         /*Encryption des bytes de l'image*/
         System.out.println("Encryption des bytes de l'image");
-        byte[] encryptedData = poc.encryptImg("src/G1/butokuden.jpg","resultats.txt");
+        byte[] encryptedData = poc.encryptImg("src/G2/butokuden.jpg","src/G2/resultats.txt");
 
 
         System.out.println("Décryption des bytes encryptés de l'image");
@@ -261,9 +260,9 @@ public class POC {
 
 
         /*Ecriture des bytes décryptés dans un nouveau ficheir .jpg*/
-        convertByteArrayToImgFile("src/G1/butokuden_result.jpg", decryptedData);
+        convertByteArrayToImgFile("src/G2/butokuden_result.jpg", decryptedData);
 
-        System.out.println("Image décryptée : résultat dans src/G1/butokuden_result.jpg");
+        System.out.println("Image décryptée : résultat dans src/G2/butokuden_result.jpg");
     }
 
 }

@@ -6,8 +6,8 @@ import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
+import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
-import java.awt.image.DataBufferByte;
 import java.io.*;
 import java.math.BigInteger;
 
@@ -19,7 +19,7 @@ import java.util.Random;
 import java.util.Scanner;
 
 
-public class POC_JCE {
+public class POC {
     BigInteger keyAES;
     BigInteger initVector;
     BigInteger publicE;
@@ -29,12 +29,15 @@ public class POC_JCE {
 
     PrintWriter printWriterResult;
 
-    public POC_JCE() {
+    public POC() {
         Random rand = new Random();
+
+        /*Génération aléatoire sur 16 octets*/
         this.keyAES = new BigInteger(127,rand);
         this.initVector = new BigInteger(127,rand);
 
-        getKeysFromTxt(new File("./clef_publique.txt"));
+        /*Récupération module public n et exposant public e*/
+        getKeysFromTxt(new File("src/G1/clef_publique.txt"));
 
         rsaPublicKeySpec = createPublicKey();
 
@@ -43,21 +46,45 @@ public class POC_JCE {
 //        System.out.println(byteArrayToString(keyAES.toByteArray()));
 
         encryptKey(keyAES);
-//        System.out.println(keyAES.bitLength());
-
-        String encryptedMsg = encryptFile("test.txt","resultats.txt");
-
-        byte[] decryptedMsg = decrypt(encryptedMsg);
-
-        System.out.println("Msg décrypté byte format : "+byteArrayToString(decryptedMsg));
-
-        System.out.println("Msg : " + new String(decryptedMsg));
     }
 
-    private String encryptFile(String inputFile, String outputFile) {
-//        IvParameterSpec iv = new IvParameterSpec(initVector.toByteArray());
+
+    /*Encryption d'un tableau de bytes en AES PKCS5*/
+    private byte[] encryptByteArray(byte[] byteArray){
         SecretKeySpec secretKeySpec = new SecretKeySpec(keyAES.toByteArray(), "AES");
         IvParameterSpec ivParameterSpec = new IvParameterSpec(initVector.toByteArray());
+
+        cipher = getCypher("AES/CBC/PKCS5PADDING");
+        assert cipher != null;
+        try {
+            cipher.init(Cipher.ENCRYPT_MODE, secretKeySpec, ivParameterSpec);
+            byte[] encryptedBytes = cipher.doFinal(byteArray);
+
+            printWriterResult.println(byteArrayToString(encryptedBytes));
+
+            printWriterResult.close();
+
+            return encryptedBytes;
+
+        } catch (InvalidKeyException | InvalidAlgorithmParameterException | BadPaddingException | IllegalBlockSizeException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    /*Encryption d'une img en la convertissant en bytes*/
+    private byte[] encryptImg(String inputFile, String outputFile) {
+
+        System.out.println("Convertion de l'image en bytes");
+        byte[] inputBytes = convertImgToByteArray(inputFile);
+
+//        System.out.println(byteArrayToString(inputBytes));
+
+        return encryptByteArray(inputBytes);
+    }
+
+    /*Encryption d'un txt en la convertissant en bytes*/
+    private byte[] encryptTextFile(String inputFile, String outputFile) {
 
         try {
             File fileToEncrypt = new File(inputFile);
@@ -67,30 +94,18 @@ public class POC_JCE {
 
             inputStream.read(inputBytes);
 
-            System.out.println("Message a encrypt byte format : " + byteArrayToString(inputBytes));
-//            System.out.println(new String(inputBytes));
-
-            cipher = getCypher("AES/CBC/PKCS5PADDING");
-            assert cipher != null;
-            cipher.init(Cipher.ENCRYPT_MODE, secretKeySpec, ivParameterSpec);
-
-            byte[] outputBytes = cipher.doFinal(inputBytes);
-
-            printWriterResult.println(byteArrayToString(outputBytes));
-
             inputStream.close();
-            printWriterResult.close();
 
-            return byteArrayToString(outputBytes);
+            return encryptByteArray(inputBytes);
 
-        } catch (InvalidKeyException | IOException | BadPaddingException | IllegalBlockSizeException | InvalidAlgorithmParameterException e) {
+        } catch (IOException e) {
             e.printStackTrace();
         }
         return null;
     }
 
-    public byte[] decrypt(String cryptedMsg){
-        System.out.println("Message crypté en : "+cryptedMsg);
+    /*Décryption des bytes cryptés précedemment*/
+    public byte[] decrypt(byte[] cryptedBytes){
 
         SecretKeySpec secretKeySpec = new SecretKeySpec(keyAES.toByteArray(), "AES");
         IvParameterSpec ivParameterSpec = new IvParameterSpec(initVector.toByteArray());
@@ -100,8 +115,6 @@ public class POC_JCE {
             assert cipher != null;
             cipher.init(Cipher.DECRYPT_MODE, secretKeySpec, ivParameterSpec);
 
-            byte[] cryptedBytes = hexStringToByteArray(cryptedMsg);
-
             return cipher.doFinal(cryptedBytes);
 
         } catch (InvalidKeyException | BadPaddingException | IllegalBlockSizeException | InvalidAlgorithmParameterException e) {
@@ -110,8 +123,7 @@ public class POC_JCE {
         return new byte[0];
     }
 
-
-
+    /*Encryption de la clé AES par l'algo du RSA avec PKCS1 padding*/
     private void encryptKey(BigInteger key) {
         try {
             cipher = getCypher("RSA/ECB/PKCS1Padding");
@@ -119,16 +131,16 @@ public class POC_JCE {
             cipher.init(Cipher.ENCRYPT_MODE, rsaPublicKeySpec);
             byte[] keyEncrypted = cipher.doFinal(key.toByteArray());
 
-            System.out.println("Clé AES chiffrée : "+byteArrayToString(keyEncrypted));
+//            System.out.println("Clé AES chiffrée : "+byteArrayToString(keyEncrypted));
 
-            write_results_to_file(keyEncrypted, "resultats.txt");
+            write_results_to_file(keyEncrypted, "src/G1/resultats.txt");
 
         } catch (InvalidKeyException | BadPaddingException | IllegalBlockSizeException e) {
             e.printStackTrace();
         }
     }
 
-
+    /*Ecriture de la clé AES dans le fichier resultats.txt*/
     private void write_results_to_file(byte[] keyEncrypted, String file) {
         printWriterResult = createPrintWriter(file);
 
@@ -167,22 +179,22 @@ public class POC_JCE {
         return null;
     }
 
-
     private void getKeysFromTxt(File file){
-       Scanner sc = null;
-       try {
-           sc = new Scanner(file);
-       } catch (FileNotFoundException e) {
-           e.printStackTrace();
-       }
-       assert sc != null;
+        Scanner sc = null;
+        try {
+            sc = new Scanner(file);
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        }
+        assert sc != null;
 
-       publicE = new BigInteger(sc.nextLine(),16);
-       publicN = new BigInteger(sc.nextLine(),16);
-   }
+        publicE = new BigInteger(sc.nextLine(),16);
+        publicN = new BigInteger(sc.nextLine(),16);
+    }
 
+    /*Fonctions de convertions : */
 
-    public String byteArrayToString(byte[] bytes) {
+    public static String byteArrayToString(byte[] bytes) {
         StringBuilder stringBuilder = new StringBuilder();
         for (byte bit : bytes)
             stringBuilder.append(String.format("%02X", bit));
@@ -199,15 +211,33 @@ public class POC_JCE {
         return data;
     }
 
-    private static byte[] convertTo2DWithoutUsingGetRGB(BufferedImage image) {
+    private static byte[] convertImgToByteArray(String imagePath) {
 
-        return ((DataBufferByte) image.getRaster().getDataBuffer()).getData();
+        File imgPath = new File(imagePath);
+        try {
+            BufferedImage bufferedImage = ImageIO.read(imgPath);
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            ImageIO.write(bufferedImage, "jpg", baos);
+            return baos.toByteArray();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return new byte[0];
+    }
+    private static void convertByteArrayToImgFile(String imagePath, byte[] byteArray){
+        try {
+            ByteArrayInputStream bais = new ByteArrayInputStream(byteArray);
+            BufferedImage bImage = ImageIO.read(bais);
+            ImageIO.write(bImage, "jpg", new File(imagePath));
 
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     @Override
     public String toString() {
-        return "POC_JCE{" +
+        return "POC{" +
                 "keyAESBig=" + keyAES +
                 ", initVectorBig=" + initVector +
                 ", publicE=" + publicE +
@@ -215,8 +245,25 @@ public class POC_JCE {
                 '}';
     }
 
+
     public static void main(String[] args) {
-        POC_JCE poc_jce = new POC_JCE();
+        POC poc = new POC();
+        /*Ligne commentée : permet l'encryption de fichiers .txt*/
+//        byte[] encryptedData = encryptTextFile("test.txt","src/G1/resultats.txt");
+
+        /*Encryption des bytes de l'image*/
+        System.out.println("Encryption des bytes de l'image");
+        byte[] encryptedData = poc.encryptImg("src/G1/butokuden.jpg","src/G1/resultats.txt");
+
+
+        System.out.println("Décryption des bytes encryptés de l'image");
+        byte[] decryptedData = poc.decrypt(encryptedData);
+
+
+        /*Ecriture des bytes décryptés dans un nouveau ficheir .jpg*/
+        convertByteArrayToImgFile("src/G1/butokuden_result.jpg", decryptedData);
+
+        System.out.println("Image décryptée : résultat dans src/G1/butokuden_result.jpg");
     }
 
 }
