@@ -1,6 +1,15 @@
+package G2;
+
+import java.io.*;
 import java.util.ArrayList;
+import java.util.Arrays;
 
 public class Aes {
+
+    byte[] dataToEncrypt;
+    ArrayList<byte[]> dataSplittedBy16Block;
+    byte[] encryptedData;
+    byte[] decryptedData;
 
     public byte[] invSBox = {
             0x52,(byte) 0x09,(byte) 0x6a,(byte) 0xd5,(byte) 0x30,(byte) 0x36,(byte) 0xa5,(byte) 0x38,(byte)
@@ -108,22 +117,33 @@ public class Aes {
 
     public static byte[] Rcon = { (byte) 0x01, (byte) 0x02, (byte) 0x04, (byte) 0x08, (byte) 0x10, (byte) 0x20, (byte) 0x40, (byte) 0x80, (byte) 0x1b, (byte) 0x36 } ;
 
+    byte[] initVector;
 
-	/* Programme principal */
+
+    public Aes(byte[] initVector,byte[] keyAes) {
+        this.initVector = initVector;
+        K = keyAes;
+    }
+
+    public Aes() {
+    }
+
+    /* Programme principal */
 
 	public static void main(String args[]) {
 		Aes aes = new Aes() ;
 
-        System.out.println("Le bloc \"State\" en entrée vaut : ") ;
-        aes.afficher_le_bloc(aes.State) ;
-
-        aes.chiffrer() ;
-        System.out.println("Le bloc \"State\" en sortie vaut : ") ;
-        aes.afficher_le_bloc(aes.State) ;
-
-        aes.dechiffrer();
-        System.out.println("Le bloc \"State\" déchiffré vaut : ") ;
-        aes.afficher_le_bloc(aes.State);
+//        System.out.println("Le bloc \"State\" en entrée vaut : ") ;
+//        aes.afficher_le_bloc(aes.State) ;
+//
+//        aes.chiffrer() ;
+//        System.out.println("Le bloc \"State\" en sortie vaut : ") ;
+//        aes.afficher_le_bloc(aes.State) ;
+//
+//        aes.dechiffrer();
+//        System.out.println("Le bloc \"State\" déchiffré vaut : ") ;
+//        aes.afficher_le_bloc(aes.State);
+        aes.encryptFile("src/G2/butokuden.jpg");
 	}
 
 
@@ -138,9 +158,7 @@ public class Aes {
 	}
 
 	public void chiffrer(){
-        calculClefs();
-        splitWInRoundKeys();
-        printRoundKeys();
+//        printRoundKeys();
 
         AddRoundKey(roundKeys.get(0));
 
@@ -323,14 +341,14 @@ public class Aes {
         }
     }
 
-    private void splitWInRoundKeys() {
-        roundKeys =new ArrayList<>();
-        for (int i = 0; i < longueur_de_la_clef_etendue; i+=16) {
+
+    private void splitByteArrayTo16Block(byte[] byteArray, ArrayList<byte[]> storageByteArrays) {
+        for (int i = 0; i < byteArray.length; i+=16) {
             byte[] tempByteArray = new byte[16];
             for (int j = 0; j < tempByteArray.length; j++) {
-                tempByteArray[j] = W[i+j];
+                tempByteArray[j] = byteArray[i+j];
             }
-            roundKeys.add(tempByteArray);
+            storageByteArrays.add(tempByteArray);
         }
     }
 
@@ -442,14 +460,13 @@ public class Aes {
         }
     }
 
-
     public void calculClefs(){
         longueur_de_la_clef = 16;
 
 //		calcule_la_clef_courte("2b7e151628aed2a6abf7158809cf4f3c");     // Fonction décodant la clef courte K
 
-        System.out.println("Clef courte :");
-        affiche_la_clef(K, longueur_de_la_clef);
+//        System.out.println("Clef courte :");
+//        affiche_la_clef(K, longueur_de_la_clef);
 
         calcule_la_clef_etendue();          // Fonction calculant la clef longue W
 
@@ -457,7 +474,135 @@ public class Aes {
         longueur_de_la_clef_etendue = (Nr+1)*4*4;
 //
 //        affiche_la_clef(W, longueur_de_la_clef_etendue);
+        roundKeys = new ArrayList<>();
+//        affiche_la_clef(W, W.length);
+
+        splitByteArrayTo16Block(W,roundKeys);
 
     }
+
+    public byte[] encryptFile(String imagePath){
+        calculClefs();
+
+        dataToEncrypt = readBytesFromFile(imagePath);
+	    addPKCS5Padding();
+        return encryptData();
+    }
+
+    private byte[] encryptData() {
+	    dataSplittedBy16Block = new ArrayList<>();
+        splitByteArrayTo16Block(dataToEncrypt,dataSplittedBy16Block);
+
+        encryptedData = new byte[dataToEncrypt.length];
+
+//        byte[] lastCryptedState = K;
+        byte[] lastCryptedState = initVector;
+
+        for (int i = 0; i < dataSplittedBy16Block.size(); i++) {
+            //xor initVector et block16
+            State = xorArray(dataSplittedBy16Block.get(i), lastCryptedState);
+
+            chiffrer();
+
+            lastCryptedState = State;
+            storeState(i*16, encryptedData);
+        }
+        return encryptedData;
+    }
+
+    public byte[] decryptData(byte[] encryptedData) {
+        calculClefs();
+        decryptedData = new byte[encryptedData.length];
+
+        dataSplittedBy16Block = new ArrayList<>();
+        splitByteArrayTo16Block(encryptedData,dataSplittedBy16Block);
+
+        byte[] lastCryptedState;
+
+        for (int i = dataSplittedBy16Block.size()-1; i <= 0; i++) {
+            State = dataSplittedBy16Block.get(i);
+
+            dechiffrer();
+
+            if(i ==0)
+                lastCryptedState = initVector;
+
+            lastCryptedState = dataSplittedBy16Block.get(i-1);
+
+            State = xorArray(State, lastCryptedState);
+            storeState(i*16, decryptedData);
+        }
+
+        decryptedData = removePKCS5Padding(decryptedData);
+        return decryptedData;
+    }
+
+
+
+    private void storeState(int positionStart, byte [] storageBytes) {
+        for (int i = 0; i < 16; i++) {
+            storageBytes[positionStart+i] = State[i];
+        }
+    }
+
+
+    private byte[] removePKCS5Padding(byte[] byteArray) {
+	    int paddingSize = byteArray[byteArray.length-1];
+        byte[] withoutPadding = Arrays.copyOfRange(byteArray, 0, byteArray.length - paddingSize);
+        return withoutPadding;
+    }
+
+
+    private void addPKCS5Padding() {
+	    int byteSizeToAdd =  K.length - (dataToEncrypt.length % K.length);
+
+	    if(byteSizeToAdd == 0)
+	        byteSizeToAdd = K.length;
+
+	    byte [] byteArrayToAdd = new byte[byteSizeToAdd];
+
+        for (int i = 0; i < byteSizeToAdd; i++) {
+            byteArrayToAdd[i] = (byte)byteSizeToAdd;
+        }
+        dataToEncrypt = concatArrays(dataToEncrypt, byteArrayToAdd);
+    }
+
+    private static byte[] concatArrays(byte[] a, byte[] b) {
+        byte[] c = new byte[a.length + b.length];
+        System.arraycopy(a, 0, c, 0, a.length);
+        System.arraycopy(b, 0, c, a.length, b.length);
+        return c;
+    }
+
+
+    private static byte[] readBytesFromFile(String filePath) {
+
+        FileInputStream fileInputStream = null;
+        byte[] bytesArray = null;
+
+        try {
+
+            File file = new File(filePath);
+            bytesArray = new byte[(int) file.length()];
+
+            //read file into bytes[]
+            fileInputStream = new FileInputStream(file);
+            fileInputStream.read(bytesArray);
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        } finally {
+            if (fileInputStream != null) {
+                try {
+                    fileInputStream.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+
+        }
+        return bytesArray;
+    }
+
 }
 

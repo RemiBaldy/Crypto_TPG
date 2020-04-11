@@ -27,9 +27,15 @@ public class POC {
     PublicKey rsaPublicKeySpec;
     Cipher cipher;
 
+    byte[] cryptedAesKey;
+    byte[] initVectorFromFile;
+    byte[] cryptedDataFile;
+
     PrintWriter printWriterResult;
 
-    public POC() {
+
+
+    public void initialiseKeys(){
         Random rand = new Random();
 
         /*Génération aléatoire sur 16 octets*/
@@ -69,49 +75,35 @@ public class POC {
         return null;
     }
 
-    /*Encryption d'une img en la convertissant en bytes*/
-    private byte[] encryptImg(String inputFile, String outputFile) {
+    /*Encryption d'un fichier en la convertissant en bytes*/
+    private byte[] encrypt(String inputFile, String outputFile) {
+        initialiseKeys();
 
         System.out.println("Convertion de l'image en bytes");
-        byte[] inputBytes = convertImgToByteArray(inputFile);
+        byte[] inputBytes = readBytesFromFile(inputFile);
 
 //        System.out.println(byteArrayToString(inputBytes));
 
         return encryptByteArray(inputBytes);
     }
 
-    /*Encryption d'un txt en la convertissant en bytes*/
-    private byte[] encryptTextFile(String inputFile, String outputFile) {
+    /*Décryption des bytes cryptés précedemment*/
+    public byte[] decrypt(byte[] cryptedBytes){
+        return decryptBytes(cryptedBytes,"AES", "AES/CBC/PKCS5PADDING");
+    }
 
-        try {
-            File fileToEncrypt = new File(inputFile);
-            FileInputStream inputStream = new FileInputStream(fileToEncrypt);
 
-            byte[] inputBytes = new byte[(int)fileToEncrypt.length()];
-
-            inputStream.read(inputBytes);
-
-            inputStream.close();
-
-            return encryptByteArray(inputBytes);
-
+    public void readFileData(String filePath) {
+        try (BufferedReader br = new BufferedReader(new FileReader(filePath))) {
+            cryptedAesKey = hexStringToByteArray(br.readLine());
+            initVectorFromFile = hexStringToByteArray(br.readLine());
+            cryptedDataFile = hexStringToByteArray(br.readLine());
         } catch (IOException e) {
             e.printStackTrace();
         }
-        return null;
     }
 
-    /*Décryption des bytes cryptés précedemment*/
-    public byte[] decrypt(byte[] cryptedBytes, byte[] keyAesEncrypted){
 
-        return decryptBytes(cryptedBytes, "AES", "AES/CBC/PKCS5PADDING");
-    }
-
-    public byte[] decryptFile(String filePath){
-
-//        return decryptBytes(cryptedBytes, "AES", "AES/CBC/PKCS5PADDING");
-        return new byte[0];
-    }
 
     public byte[] decryptBytes(byte[] cryptedBytes, String algorithm, String cypher){
 
@@ -219,28 +211,42 @@ public class POC {
         return data;
     }
 
-    private static byte[] convertImgToByteArray(String imagePath) {
+    private static void writeBytesToFile(String fileDest, byte[] byteArray) {
 
-        File imgPath = new File(imagePath);
-        try {
-            BufferedImage bufferedImage = ImageIO.read(imgPath);
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            ImageIO.write(bufferedImage, "jpg", baos);
-            return baos.toByteArray();
+        try (FileOutputStream fileOuputStream = new FileOutputStream(fileDest)) {
+            fileOuputStream.write(byteArray);
         } catch (IOException e) {
             e.printStackTrace();
         }
-        return new byte[0];
     }
-    private static void convertByteArrayToImgFile(String imagePath, byte[] byteArray){
+
+    private static byte[] readBytesFromFile(String filePath) {
+
+        FileInputStream fileInputStream = null;
+        byte[] bytesArray = null;
+
         try {
-            ByteArrayInputStream bais = new ByteArrayInputStream(byteArray);
-            BufferedImage bImage = ImageIO.read(bais);
-            ImageIO.write(bImage, "jpg", new File(imagePath));
+
+            File file = new File(filePath);
+            bytesArray = new byte[(int) file.length()];
+
+            //read file into bytes[]
+            fileInputStream = new FileInputStream(file);
+            fileInputStream.read(bytesArray);
 
         } catch (IOException e) {
             e.printStackTrace();
+        } finally {
+            if (fileInputStream != null) {
+                try {
+                    fileInputStream.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+
         }
+        return bytesArray;
     }
 
     @Override
@@ -256,20 +262,18 @@ public class POC {
 
     public static void main(String[] args) {
         POC poc = new POC();
-        /*Ligne commentée : permet l'encryption de fichiers .txt*/
-//        byte[] encryptedData = encryptTextFile("test.txt","src/G1/resultats.txt");
 
         /*Encryption des bytes de l'image*/
-//        System.out.println("Encryption des bytes de l'image");
-//        byte[] encryptedData = poc.encryptImg("src/G1/butokuden.jpg","src/G1/resultats.txt");
+        System.out.println("Encryption des bytes de l'image");
+        byte[] encryptedData = poc.encrypt("src/G1/butokuden.jpg","src/G1/resultats.txt");
 
 
         System.out.println("Décryption des bytes encryptés de l'image");
-        byte[] decryptedData = poc.decryptFile("src/G1/resultats.txt");
+        byte[] decryptedData = poc.decrypt(encryptedData);
 
 
         /*Ecriture des bytes décryptés dans un nouveau ficheir .jpg*/
-        convertByteArrayToImgFile("src/G1/butokuden_result.jpg", decryptedData);
+        writeBytesToFile("src/G1/butokuden_result.jpg", decryptedData);
 
         System.out.println("Image décryptée : résultat dans src/G1/butokuden_result.jpg");
     }
