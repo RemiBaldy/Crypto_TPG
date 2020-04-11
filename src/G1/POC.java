@@ -6,8 +6,6 @@ import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
-import javax.imageio.ImageIO;
-import java.awt.image.BufferedImage;
 import java.io.*;
 import java.math.BigInteger;
 
@@ -24,12 +22,12 @@ public class POC {
     BigInteger initVector;
     BigInteger publicE;
     BigInteger publicN;
-    PublicKey rsaPublicKeySpec;
+
+    PublicKey rsaPublicKey;
+
     Cipher cipher;
 
     byte[] cryptedAesKey;
-    byte[] initVectorFromFile;
-    byte[] cryptedDataFile;
 
     PrintWriter printWriterResult;
 
@@ -45,8 +43,7 @@ public class POC {
         /*Récupération module public n et exposant public e*/
         getKeysFromTxt(new File("src/G1/clef_publique.txt"));
 
-        rsaPublicKeySpec = createPublicKey();
-
+        createRsaKeys();
 
         encryptKey(keyAES);
     }
@@ -82,32 +79,20 @@ public class POC {
         System.out.println("Convertion de l'image en bytes");
         byte[] inputBytes = readBytesFromFile(inputFile);
 
-//        System.out.println(byteArrayToString(inputBytes));
-
         return encryptByteArray(inputBytes);
     }
 
     /*Décryption des bytes cryptés précedemment*/
     public byte[] decrypt(byte[] cryptedBytes){
-        return decryptBytes(cryptedBytes,"AES", "AES/CBC/PKCS5PADDING");
-    }
 
-
-    public void readFileData(String filePath) {
-        try (BufferedReader br = new BufferedReader(new FileReader(filePath))) {
-            cryptedAesKey = hexStringToByteArray(br.readLine());
-            initVectorFromFile = hexStringToByteArray(br.readLine());
-            cryptedDataFile = hexStringToByteArray(br.readLine());
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        return decryptBytes(cryptedBytes,keyAES.toByteArray() ,"AES", "AES/CBC/PKCS5PADDING");
     }
 
 
 
-    public byte[] decryptBytes(byte[] cryptedBytes, String algorithm, String cypher){
+    public byte[] decryptBytes(byte[] cryptedBytes,byte[] aesKey, String algorithm, String cypher){
 
-        SecretKeySpec secretKeySpec = new SecretKeySpec(keyAES.toByteArray(), algorithm);
+        SecretKeySpec secretKeySpec = new SecretKeySpec(aesKey, algorithm);
         IvParameterSpec ivParameterSpec = new IvParameterSpec(initVector.toByteArray());
 
         try {
@@ -128,12 +113,10 @@ public class POC {
         try {
             cipher = getCypher("RSA/ECB/PKCS1Padding");
             assert cipher != null;
-            cipher.init(Cipher.ENCRYPT_MODE, rsaPublicKeySpec);
-            byte[] keyEncrypted = cipher.doFinal(key.toByteArray());
+            cipher.init(Cipher.ENCRYPT_MODE, rsaPublicKey);
+            cryptedAesKey = cipher.doFinal(key.toByteArray());
 
-//            System.out.println("Clé AES chiffrée : "+byteArrayToString(keyEncrypted));
-
-            writeKeyAndInitVectorToFile(keyEncrypted, "src/G1/resultats.txt");
+            writeKeyAndInitVectorToFile(cryptedAesKey, "src/G1/resultats.txt");
 
         } catch (InvalidKeyException | BadPaddingException | IllegalBlockSizeException e) {
             e.printStackTrace();
@@ -158,16 +141,16 @@ public class POC {
         return writer;
     }
 
-    public PublicKey createPublicKey(){
+    public void createRsaKeys(){
         try {
             KeyFactory usineAClefs = KeyFactory.getInstance("RSA");
-            RSAPublicKeySpec rsaPublicKeySpec =  new RSAPublicKeySpec(publicN,publicE);
-            return usineAClefs.generatePublic(rsaPublicKeySpec);
+            RSAPublicKeySpec rsaPublicKeySpe =  new RSAPublicKeySpec(publicN,publicE);
+//            rsaPrivateKey = usineAClefs.generatePrivate(rsaPublicKeySpe);
+            rsaPublicKey = usineAClefs.generatePublic(rsaPublicKeySpe);
 
         } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
             e.printStackTrace();
         }
-        return null;
     }
 
     private Cipher getCypher(String cypher) {

@@ -1,10 +1,6 @@
 package G2;
-import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
-import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
-import javax.crypto.spec.IvParameterSpec;
-import javax.crypto.spec.SecretKeySpec;
 import java.io.*;
 import java.math.BigInteger;
 
@@ -21,13 +17,12 @@ public class POC {
     BigInteger initVector;
     BigInteger publicE;
     BigInteger publicN;
-    PublicKey rsaPublicKeySpec;
-    Cipher cipher;
+
+    byte[] cryptedAesKey;
 
     Aes aes;
 
     PrintWriter printWriterResult;
-
 
 
     public void initialiseKeys(){
@@ -40,8 +35,6 @@ public class POC {
         /*Récupération module public n et exposant public e*/
         getKeysFromTxt(new File("src/G2/clef_publique.txt"));
 
-        rsaPublicKeySpec = createPublicKey();
-
         encryptKey(keyAES);
     }
 
@@ -50,45 +43,36 @@ public class POC {
     private byte[] encrypt(String inputFile, String outputFile) {
         initialiseKeys();
 
-//        System.out.println(byteArrayToString(inputBytes));
-
         aes = new Aes(initVector.toByteArray(), keyAES.toByteArray());
         byte[] encryptedFile = aes.encryptFile(inputFile);
 
         System.out.println("Taille fichier encrypté : " + encryptedFile.length);
 
-
-        System.out.println("Ficheir encrypté stocké dans src/G2/resultat.txt");
+        System.out.println("Fichier encrypté stocké dans src/G2/resultat.txt");
         printWriterResult.println(byteArrayToString(encryptedFile));
         printWriterResult.close();
 
-
         return encryptedFile;
-//        return encryptByteArray(inputBytes);
     }
+
+
 
     /*Décryption des bytes cryptés précedemment*/
     public byte[] decrypt(byte[] cryptedBytes){
-//        aes = new Aes(initVector.toByteArray(), keyAES.toByteArray());
+        aes = new Aes(initVector.toByteArray(), keyAES.toByteArray());
         return aes.decryptData(cryptedBytes);
     }
 
 
     /*Encryption de la clé AES par l'algo du RSA avec PKCS1 padding*/
     private void encryptKey(BigInteger key) {
-        try {
-            cipher = getCypher("RSA/ECB/PKCS1Padding");
-            assert cipher != null;
-            cipher.init(Cipher.ENCRYPT_MODE, rsaPublicKeySpec);
-            byte[] keyEncrypted = cipher.doFinal(key.toByteArray());
+        RSA_PKCS1 rsa_pkcs1 = new RSA_PKCS1(publicE,publicN);
 
-//            System.out.println("Clé AES chiffrée : "+byteArrayToString(keyEncrypted));
+        cryptedAesKey = rsa_pkcs1.encrypt(key.toByteArray());
+        System.out.println("Clé Aes cryptée en :");
+        System.out.println(toHex(cryptedAesKey));
 
-            writeKeyAndInitVectorToFile(keyEncrypted, "src/G2/resultats.txt");
-
-        } catch (InvalidKeyException | BadPaddingException | IllegalBlockSizeException e) {
-            e.printStackTrace();
-        }
+        writeKeyAndInitVectorToFile(cryptedAesKey, "src/G2/resultats.txt");
     }
 
     /*Ecriture de la clé AES dans le fichier resultats.txt*/
@@ -198,6 +182,12 @@ public class POC {
 
         }
         return bytesArray;
+    }
+    public static String toHex(byte[] données) {
+        StringBuffer sb = new StringBuffer();
+        for(byte k: données) sb.append(String.format("0x%02X ", k));
+        sb.append(" (" + données.length + " octets)");
+        return sb.toString();
     }
 
     @Override

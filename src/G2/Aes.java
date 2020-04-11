@@ -388,10 +388,10 @@ public class Aes {
 
         return resultArray;
     }
+
     public byte xor(byte b1, byte b2) {
         return (byte) (Byte.toUnsignedInt(b1) ^ Byte.toUnsignedInt(b2));
     }
-
 
 
     public void calcule_la_clef_etendue() {
@@ -420,11 +420,6 @@ public class Aes {
             for(int j = (i*4)-4; j < i*4; j++){
                 tmp[indexTmp++] = W[j];
             }
-
-            //affiche colonne recopiée
-//			for (int j = 0; j < 4; j++) {
-//				System.out.println(tmp[j]);
-//			}
 
             if(i % Nk  == 0){
                 rotWord(tmp);
@@ -456,17 +451,12 @@ public class Aes {
 
 //		calcule_la_clef_courte("2b7e151628aed2a6abf7158809cf4f3c");     // Fonction décodant la clef courte K
 
-//        System.out.println("Clef courte :");
-//        affiche_la_clef(K, longueur_de_la_clef);
-
         calcule_la_clef_etendue();          // Fonction calculant la clef longue W
 
-//        System.out.println("Clef longue :");
         longueur_de_la_clef_etendue = (Nr+1)*4*4;
-//
-//        affiche_la_clef(W, longueur_de_la_clef_etendue);
+
         roundKeys = new ArrayList<>();
-//        affiche_la_clef(W, W.length);
+
 
         splitByteArrayTo16Block(W,roundKeys);
 
@@ -502,7 +492,7 @@ public class Aes {
     }
 
     public byte[] decryptData(byte[] encryptedData) {
-//        calculClefs();
+        calculClefs();
         decryptedData = new byte[encryptedData.length];
 
         dataSplittedBy16Block = new ArrayList<>();
@@ -526,14 +516,11 @@ public class Aes {
         return removePKCS5Padding(decryptedData);
     }
 
-
-
     private void storeState(int positionStart, byte [] storageBytes) {
         for (int i = 0; i < 16; i++) {
             storageBytes[positionStart+i] = State[i];
         }
     }
-
 
     private byte[] removePKCS5Padding(byte[] byteArray) {
 	    int paddingSize = byteArray[byteArray.length-1];
