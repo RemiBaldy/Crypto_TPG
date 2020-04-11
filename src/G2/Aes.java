@@ -133,16 +133,7 @@ public class Aes {
 	public static void main(String args[]) {
 		Aes aes = new Aes() ;
 
-//        System.out.println("Le bloc \"State\" en entrée vaut : ") ;
-//        aes.afficher_le_bloc(aes.State) ;
-//
-//        aes.chiffrer() ;
-//        System.out.println("Le bloc \"State\" en sortie vaut : ") ;
-//        aes.afficher_le_bloc(aes.State) ;
-//
-//        aes.dechiffrer();
-//        System.out.println("Le bloc \"State\" déchiffré vaut : ") ;
-//        aes.afficher_le_bloc(aes.State);
+        aes.initVector = aes.K;
         aes.encryptFile("src/G2/butokuden.jpg");
 	}
 
@@ -511,7 +502,7 @@ public class Aes {
     }
 
     public byte[] decryptData(byte[] encryptedData) {
-        calculClefs();
+//        calculClefs();
         decryptedData = new byte[encryptedData.length];
 
         dataSplittedBy16Block = new ArrayList<>();
@@ -519,22 +510,20 @@ public class Aes {
 
         byte[] lastCryptedState;
 
-        for (int i = dataSplittedBy16Block.size()-1; i <= 0; i++) {
+        for (int i = dataSplittedBy16Block.size()-1; i >= 0; i--) {
             State = dataSplittedBy16Block.get(i);
 
             dechiffrer();
 
-            if(i ==0)
+            if(i == 0)
                 lastCryptedState = initVector;
-
-            lastCryptedState = dataSplittedBy16Block.get(i-1);
+            else
+                lastCryptedState = dataSplittedBy16Block.get(i-1);
 
             State = xorArray(State, lastCryptedState);
             storeState(i*16, decryptedData);
         }
-
-        decryptedData = removePKCS5Padding(decryptedData);
-        return decryptedData;
+        return removePKCS5Padding(decryptedData);
     }
 
 
@@ -548,8 +537,7 @@ public class Aes {
 
     private byte[] removePKCS5Padding(byte[] byteArray) {
 	    int paddingSize = byteArray[byteArray.length-1];
-        byte[] withoutPadding = Arrays.copyOfRange(byteArray, 0, byteArray.length - paddingSize);
-        return withoutPadding;
+        return Arrays.copyOfRange(byteArray, 0, byteArray.length - paddingSize);
     }
 
 

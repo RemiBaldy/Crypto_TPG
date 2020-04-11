@@ -24,10 +24,6 @@ public class POC {
     PublicKey rsaPublicKeySpec;
     Cipher cipher;
 
-    byte[] cryptedAesKey;
-    byte[] initVectorFromFile;
-    byte[] cryptedDataFile;
-
     Aes aes;
 
     PrintWriter printWriterResult;
@@ -50,29 +46,6 @@ public class POC {
     }
 
 
-    /*Encryption d'un tableau de bytes en AES PKCS5*/
-    private byte[] encryptByteArray(byte[] byteArray){
-        SecretKeySpec secretKeySpec = new SecretKeySpec(keyAES.toByteArray(), "AES");
-        IvParameterSpec ivParameterSpec = new IvParameterSpec(initVector.toByteArray());
-
-        cipher = getCypher("AES/CBC/PKCS5PADDING");
-        assert cipher != null;
-        try {
-            cipher.init(Cipher.ENCRYPT_MODE, secretKeySpec, ivParameterSpec);
-            byte[] encryptedBytes = cipher.doFinal(byteArray);
-
-            printWriterResult.println(byteArrayToString(encryptedBytes));
-
-            printWriterResult.close();
-
-            return encryptedBytes;
-
-        } catch (InvalidKeyException | InvalidAlgorithmParameterException | BadPaddingException | IllegalBlockSizeException e) {
-            e.printStackTrace();
-        }
-        return null;
-    }
-
     /*Encryption d'un fichier en la convertissant en bytes*/
     private byte[] encrypt(String inputFile, String outputFile) {
         initialiseKeys();
@@ -82,41 +55,24 @@ public class POC {
         aes = new Aes(initVector.toByteArray(), keyAES.toByteArray());
         byte[] encryptedFile = aes.encryptFile(inputFile);
 
-//        System.out.println("Convertion de l'image en bytes");
-//        byte[] inputBytes = readBytesFromFile(inputFile);
-//        byte[] encryptedFile = encryptByteArray(inputBytes);
+        System.out.println("Taille fichier encrypté : " + encryptedFile.length);
 
-        System.out.println(encryptedFile.length);
+
+        System.out.println("Ficheir encrypté stocké dans src/G2/resultat.txt");
+        printWriterResult.println(byteArrayToString(encryptedFile));
+        printWriterResult.close();
+
+
         return encryptedFile;
 //        return encryptByteArray(inputBytes);
     }
 
     /*Décryption des bytes cryptés précedemment*/
     public byte[] decrypt(byte[] cryptedBytes){
+//        aes = new Aes(initVector.toByteArray(), keyAES.toByteArray());
         return aes.decryptData(cryptedBytes);
-//        return decryptBytes(cryptedBytes,"AES", "AES/CBC/PKCS5PADDING");
     }
 
-
-
-
-    public byte[] decryptBytes(byte[] cryptedBytes, String algorithm, String cypher){
-
-        SecretKeySpec secretKeySpec = new SecretKeySpec(keyAES.toByteArray(), algorithm);
-        IvParameterSpec ivParameterSpec = new IvParameterSpec(initVector.toByteArray());
-
-        try {
-            cipher = getCypher(cypher);
-            assert cipher != null;
-            cipher.init(Cipher.DECRYPT_MODE, secretKeySpec, ivParameterSpec);
-
-            return cipher.doFinal(cryptedBytes);
-
-        } catch (InvalidKeyException | BadPaddingException | IllegalBlockSizeException | InvalidAlgorithmParameterException e) {
-            e.printStackTrace();
-        }
-        return new byte[0];
-    }
 
     /*Encryption de la clé AES par l'algo du RSA avec PKCS1 padding*/
     private void encryptKey(BigInteger key) {
